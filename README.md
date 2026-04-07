@@ -270,19 +270,6 @@ pytest tests/test_ue5_mock.py -v
 
 ---
 
-## Build log
-
-| Day | Layer | Status |
-|---|---|---|
-| Day 1 | `llm/` — model abstraction, backends, router, prompts | ✅ Complete |
-| Day 2 | `agents/` — base class + all four agents | 🔜 Next |
-| Day 3 | `orchestrator/` — task parsing, routing, state | 🔜 Planned |
-| Day 4 | `tools/` — UE5 bridge, remote control, Blueprint writer | 🔜 Planned |
-| Day 5 | `memory/` — ChromaDB RAG, task history | 🔜 Planned |
-| Day 6 | `sandbox/` — AST validator, dry-run, rollback | 🔜 Planned |
-| Day 7 | `ui/` — CLI + Gradio dashboard | 🔜 Planned |
-
----
 
 ## License
 
