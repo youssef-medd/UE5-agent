@@ -105,3 +105,56 @@ class TokenBudget :
             f"TokenBudget: {self.total_tokens}/{self.limit} tokens used "
             f"in {self.total_calls} calls (avg latency {avg_lat:.0f}ms)"
         )
+class BaseLLM(RetryMixin, abc.ABC):
+    def __init__(self, model_name: str, timeout: float = 90.0):
+        self.model_name = model_name
+        self.timeout = timeout
+        self._healthy: Optional[bool] = None   
+    @abc.abstractmethod
+    async def generate(
+        self,
+        messages: list[dict],
+        config: Optional[GenerationConfig] = None,
+    ) -> LLMResponse:
+        ...
+    @abc.abstractmethod
+    async def stream(
+        self,
+        messages: list[dict],
+        config: Optional[GenerationConfig] = None,
+    ) -> AsyncIterator[str]:
+        ...
+    @abc.abstractmethod
+    async def health_check(self) -> bool:
+        ... 
+    def _build_messages(
+        self,
+        user_content: str,
+        system_prompt: str = "",
+        history: Optional[list[dict]] = None,
+    ) -> list[dict]:
+        messages: list[dict] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        if history:
+            for entry in history:
+                if isinstance(entry, dict) and "role" in entry and "content" in entry:
+                    messages.append(entry)
+                else:
+                    logger.warning("Dropping malformed history entry: %r", entry)
+        messages.append({"role": "user", "content": user_content})
+        return messages
+    async def generate_simple(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        config: Optional[GenerationConfig] = None,
+    ) -> LLMResponse:
+        messages = self._build_messages(prompt, system_prompt)
+        return await self.generate(messages, config)
+    def __repr__(self) -> str:
+        status = {True: "healthy", False: "unhealthy", None: "unchecked"}
+        return (
+            f"{self.__class__.__name__}(model={self.model_name!r}, "
+            f"status={status[self._healthy]})"
+        )
