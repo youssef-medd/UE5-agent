@@ -104,4 +104,3 @@ class TokenBudget :
         return (
             f"TokenBudget: {self.total_tokens}/{self.limit} tokens used "
             f"in {self.total_calls} calls (avg latency {avg_lat:.0f}ms)"
-        )
