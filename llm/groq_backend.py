@@ -5,6 +5,7 @@ import os
 import time
 import json
 import uuid
+import asyncio
 from typing import AsyncIterator, Optional
 
 import httpx
@@ -90,9 +91,11 @@ class GroqBackend(BaseLLM):
         logger.debug("Groq stream started | id=%s", request_id)
 
         try:
-            async with self._client.stream(
+            stream_ctx = self._client.stream(
                 "POST", "/chat/completions", json=payload
-            ) as resp:
+            )
+
+            async with await asyncio.wait_for(stream_ctx.__aenter__(), timeout=self.timeout) as resp:
                 resp.raise_for_status()
 
                 async for raw_line in resp.aiter_lines():
@@ -115,6 +118,9 @@ class GroqBackend(BaseLLM):
                     except Exception:
                         continue
 
+        except asyncio.TimeoutError:
+            logger.error("Groq stream timeout | id=%s | timeout=%ss", request_id, self.timeout)
+            yield ""
         except httpx.HTTPStatusError as exc:
             logger.error("Groq stream HTTP error | id=%s | %s", request_id, exc)
             yield ""
@@ -176,7 +182,13 @@ class GroqBackend(BaseLLM):
         payload = self._build_payload(messages, config, stream=False)
 
         try:
-            resp = await self._client.post("/chat/completions", json=payload)
+            resp = await asyncio.wait_for(
+                self._client.post("/chat/completions", json=payload),
+                timeout=self.timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error("Groq request timeout after %ss", self.timeout)
+            raise RuntimeError(f"Groq request timeout after {self.timeout}s")
         except httpx.ReadTimeout:
             raise RuntimeError(
                 f"Groq timed out after {self.timeout}s for model {self.model_name}. "
@@ -188,9 +200,11 @@ class GroqBackend(BaseLLM):
             logger.warning(
                 "Groq rate limit hit. Waiting %.1fs as instructed by API.", retry_after
             )
-            import asyncio
             await asyncio.sleep(retry_after)
-            resp = await self._client.post("/chat/completions", json=payload)
+            resp = await asyncio.wait_for(
+                self._client.post("/chat/completions", json=payload),
+                timeout=self.timeout
+            )
 
         resp.raise_for_status()
         data = resp.json()
