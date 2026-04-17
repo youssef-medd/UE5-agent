@@ -1,9 +1,9 @@
-
 from __future__ import annotations
 
 import logging
 import os
 import time
+import json
 from typing import AsyncIterator, Optional
 
 import httpx
@@ -13,6 +13,7 @@ from llm.base_llm import BaseLLM, GenerationConfig, LLMResponse
 logger = logging.getLogger(__name__)
 
 _GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+
 MODEL_MAP: dict[str, str] = {
     "qwen2.5:14b":        "llama-3.1-70b-versatile",
     "qwen2.5-coder:32b":  "llama-3.1-70b-versatile",
@@ -20,6 +21,8 @@ MODEL_MAP: dict[str, str] = {
 }
 
 _DEFAULT_GROQ_MODEL = "llama-3.1-70b-versatile"
+
+
 class GroqBackend(BaseLLM):
 
     def __init__(
@@ -28,21 +31,23 @@ class GroqBackend(BaseLLM):
         api_key: Optional[str] = None,
         timeout: float = 60.0,
     ):
-        groq_model = MODEL_MAP.get(ollama_model_name, _DEFAULT_GROQ_MODEL)
-
-        if groq_model != MODEL_MAP.get(ollama_model_name):
+        groq_model = MODEL_MAP.get(ollama_model_name)
+        if groq_model is None:
+            groq_model = _DEFAULT_GROQ_MODEL
             logger.warning(
                 "No Groq mapping for %r — using default %r",
                 ollama_model_name, _DEFAULT_GROQ_MODEL,
             )
 
         super().__init__(model_name=groq_model, timeout=timeout)
-        self._api_key = api_key or os.environ.get("GROQ_API_KEY", "")
+
+        self._api_key = api_key or os.environ.get("GROQ_API_KEY")
         if not self._api_key:
             raise ValueError(
                 "Groq API key not provided. Set GROQ_API_KEY in .env "
                 "or pass api_key= to GroqBackend()."
             )
+
         self._client = httpx.AsyncClient(
             base_url=_GROQ_BASE_URL,
             timeout=httpx.Timeout(connect=10.0, read=timeout, write=30.0, pool=5.0),
@@ -68,6 +73,7 @@ class GroqBackend(BaseLLM):
             self.model_name, response.tokens_used, response.latency_ms,
         )
         return response
+
     async def stream(
         self,
         messages: list[dict],
@@ -87,19 +93,19 @@ class GroqBackend(BaseLLM):
 
                     if not raw_line or not raw_line.startswith("data: "):
                         continue
+
                     data_part = raw_line[len("data: "):]
                     if data_part == "[DONE]":
                         return
 
-                    import json
                     try:
                         obj = json.loads(data_part)
+                        delta = obj.get("choices", [{}])[0].get("delta", {})
+                        chunk = delta.get("content", "")
+                        if chunk:
+                            yield chunk
                     except Exception:
-                        continue                    
-                    delta = obj.get("choices", [{}])[0].get("delta", {})
-                    chunk = delta.get("content", "")
-                    if chunk:
-                        yield chunk
+                        continue
 
         except httpx.HTTPStatusError as exc:
             logger.error("Groq stream HTTP error: %s", exc)
@@ -123,13 +129,13 @@ class GroqBackend(BaseLLM):
                 self._healthy = True
                 logger.debug("Groq health OK: model %r available", self.model_name)
                 return True
-            else:
-                self._healthy = False
-                logger.warning(
-                    "Groq health: model %r not in available list: %s",
-                    self.model_name, available[:5],
-                )
-                return False
+
+            self._healthy = False
+            logger.warning(
+                "Groq health: model %r not in available list: %s",
+                self.model_name, available[:5],
+            )
+            return False
 
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 401:
@@ -139,10 +145,12 @@ class GroqBackend(BaseLLM):
                 )
             self._healthy = False
             return False
+
         except Exception as exc:
             logger.warning("Groq health check failed: %s", exc)
             self._healthy = False
             return False
+
     async def __aenter__(self) -> "GroqBackend":
         return self
 
@@ -167,7 +175,6 @@ class GroqBackend(BaseLLM):
                 "Consider using a smaller/faster Groq model."
             )
 
-        # Handle rate limiting explicitly — give the retry logic the right delay
         if resp.status_code == 429:
             retry_after = float(resp.headers.get("Retry-After", "5"))
             logger.warning(
@@ -179,11 +186,14 @@ class GroqBackend(BaseLLM):
 
         resp.raise_for_status()
         data = resp.json()
+
         choice = data["choices"][0]
         text = choice["message"]["content"].strip()
         finish_reason = choice.get("finish_reason", "stop")
+
         usage = data.get("usage", {})
         tokens_used = usage.get("total_tokens", 0)
+
         return LLMResponse(
             text=text,
             model=self.model_name,
@@ -191,13 +201,14 @@ class GroqBackend(BaseLLM):
             finish_reason=finish_reason,
             raw=data,
         )
+
     def _build_payload(
         self,
         messages: list[dict],
         config: GenerationConfig,
         stream: bool,
     ) -> dict:
-        payload: dict = {
+        payload = {
             "model": self.model_name,
             "messages": messages,
             "max_tokens": config.max_tokens,
@@ -206,6 +217,7 @@ class GroqBackend(BaseLLM):
             "frequency_penalty": max(0.0, config.repeat_penalty - 1.0),
             "stream": stream,
         }
+
         if config.stop_sequences:
             payload["stop"] = config.stop_sequences
 
