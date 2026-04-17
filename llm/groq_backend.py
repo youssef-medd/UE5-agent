@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import json
+import uuid
 from typing import AsyncIterator, Optional
 
 import httpx
@@ -62,15 +63,18 @@ class GroqBackend(BaseLLM):
         messages: list[dict],
         config: Optional[GenerationConfig] = None,
     ) -> LLMResponse:
+        request_id = str(uuid.uuid4())
         cfg = config or GenerationConfig()
         start = time.monotonic()
+
+        logger.debug("Groq request started | id=%s | model=%s", request_id, self.model_name)
 
         response = await self._with_retry(self._raw_generate, messages, cfg)
         response.latency_ms = (time.monotonic() - start) * 1000
 
-        logger.debug(
-            "Groq generate: model=%s, tokens=%d, latency=%.0fms",
-            self.model_name, response.tokens_used, response.latency_ms,
+        logger.info(
+            "Groq response | id=%s | tokens=%d | latency=%.0fms",
+            request_id, response.tokens_used, response.latency_ms,
         )
         return response
 
@@ -79,8 +83,11 @@ class GroqBackend(BaseLLM):
         messages: list[dict],
         config: Optional[GenerationConfig] = None,
     ) -> AsyncIterator[str]:
+        request_id = str(uuid.uuid4())
         cfg = config or GenerationConfig()
         payload = self._build_payload(messages, cfg, stream=True)
+
+        logger.debug("Groq stream started | id=%s", request_id)
 
         try:
             async with self._client.stream(
@@ -96,6 +103,7 @@ class GroqBackend(BaseLLM):
 
                     data_part = raw_line[len("data: "):]
                     if data_part == "[DONE]":
+                        logger.debug("Groq stream finished | id=%s", request_id)
                         return
 
                     try:
@@ -108,10 +116,10 @@ class GroqBackend(BaseLLM):
                         continue
 
         except httpx.HTTPStatusError as exc:
-            logger.error("Groq stream HTTP error: %s", exc)
+            logger.error("Groq stream HTTP error | id=%s | %s", request_id, exc)
             yield ""
         except Exception as exc:
-            logger.error("Groq stream unexpected error: %s", exc)
+            logger.error("Groq stream unexpected error | id=%s | %s", request_id, exc)
             yield ""
 
     async def health_check(self) -> bool:
