@@ -39,123 +39,102 @@ AXIOM is a **production-grade multi-agent AI platform** that acts as a senior Un
 
 ```mermaid
 flowchart TB
-    subgraph ENTRY["🖥️  ENTRY POINTS & INTERFACES"]
-        direction LR
-        CLI["💻 CLI Terminal\nRich + Typer\nInteractive REPL"]
-        WEB["🌐 Web Dashboard\nGradio\nBrowser UI"]
-        HAPI["⚡ Headless API\nasyncio\nSingle-prompt mode"]
-        AMON["📡 Agent Monitor\nLive terminal\nReal-time status"]
+    subgraph ENTRY["🖥️ ENTRY POINTS & INTERFACES"]
+        CLI["💻 CLI Terminal - Rich + Typer"]:::eStyle
+        WEB["🌐 Web Dashboard - Gradio"]:::eStyle
+        HAPI["⚡ Headless API - asyncio"]:::eStyle
+        AMON["📡 Agent Monitor - Live view"]:::eStyle
     end
 
-    EBUS{{"🔄  ASYNC EVENT BUS  ─────────────────────────────────────────────────────\nasyncio.Queue  ·  pub / sub  ·  EventKind enum  ·  15 typed event kinds\nTASK_CREATED · AGENT_THINKING · CODE_GENERATED · UE5_REQUEST · UE5_ERROR  ···"}}
+    EBUS["🔄 ASYNC EVENT BUS - asyncio pub/sub - EventKind enum - 15 typed event kinds"]:::busStyle
 
-    subgraph ORCH["🎯  ORCHESTRATOR"]
-        direction LR
-        TP["🔍 task_parser\nIntent extraction\nFlag detection"]
-        TQ["📋 task_queue\nPriority queue\nasyncio-native"]
-        SM["🗄️ state_manager\nRedis · JSON fallback\nShared agent state"]
+    subgraph ORCH["🎯 ORCHESTRATOR"]
+        TP["task_parser - Intent extraction"]:::orchStyle
+        TQ["task_queue - Priority queue"]:::orchStyle
+        SM["state_manager - Redis / JSON"]:::orchStyle
     end
 
-    subgraph PIPELINE["🤖  AGENT PIPELINE"]
-        direction LR
-        PA["🧠 PLANNER\nQwen2.5-14B\nTask decomposition\nJSON step output"]
-        CA["💻 CODER\nQwen2.5-Coder-32B\nUE5 Python generation\nBlueprint scripts"]
-        RA["🔍 REVIEWER\nMistral-7B\nSafety validation\nRisk scoring"]
-        EA["⚙️ EXECUTOR\nDeterministic\nApproval gating\nUE5 dispatch"]
+    subgraph AGENTS["🤖 AGENT PIPELINE"]
+        PA["🧠 PLANNER - Qwen2.5-14B - Task decomposition"]:::agentStyle
+        CA["💻 CODER - Qwen2.5-Coder-32B - Code generation"]:::agentStyle
+        RA["✅ REVIEWER - Mistral-7B - Safety validation"]:::agentStyle
+        EA["⚙️ EXECUTOR - Deterministic - UE5 dispatch"]:::agentStyle
     end
 
-    subgraph LLM["🔮  LLM ABSTRACTION LAYER"]
-        direction LR
-        MR["🔀 ModelRouter\nRole → backend\nHealth-aware"]
-        OB["🦙 OllamaBackend\nAsync streaming\nLocal inference"]
-        GB["☁️ GroqBackend\nRate-limit handling\nRequest tracing"]
-        PT["📝 PromptTemplates\nPer-role system prompts\nTyped templates"]
-        RM["🔁 RetryMixin\nExp. backoff + jitter\n4 attempts max"]
-        TB2["💰 TokenBudget\nUsage tracking\nHard limits"]
+    subgraph LLML["🔮 LLM ABSTRACTION LAYER"]
+        MR["ModelRouter"]:::llmStyle
+        OB["OllamaBackend"]:::llmStyle
+        GB["GroqBackend"]:::llmStyle
+        PTE["PromptTemplates"]:::llmStyle
+        RMX["RetryMixin"]:::llmStyle
+        TBK["TokenBudget"]:::llmStyle
     end
 
-    subgraph TOOLS["🛠️  TOOL LAYER"]
-        direction LR
-        RC["🔌 RemoteControl\nHTTP :30010\nUE5 API bridge"]
-        PB["🎭 UE5PythonBridge\nSpawn / Delete / Move\nActor operations"]
-        BW["📐 BlueprintWriter\nCreate + Compile\nBP assets"]
-        AM["📦 AssetManager\nImport FBX / textures\nRegistry queries"]
-        WQ["🌍 WorldQuery\nLive world state\nActor list"]
-        LW["📜 LogWatcher\nTail output log\nReal-time errors"]
-        TR["📋 ToolRegistry\nRegister + dispatch\nTool validation"]
+    subgraph TOOLL["🛠️ TOOL LAYER"]
+        RCC["RemoteControl - HTTP 30010"]:::toolStyle
+        PBR["UE5PythonBridge"]:::toolStyle
+        BWR["BlueprintWriter"]:::toolStyle
+        AMG["AssetManager"]:::toolStyle
+        WQL["WorldQuery"]:::toolStyle
+        LWR["LogWatcher"]:::toolStyle
+        TRG["ToolRegistry"]:::toolStyle
     end
 
-    subgraph MEMORY["🧠  MEMORY LAYER"]
-        direction LR
-        ST["⚡ ShortTermMemory\nSliding window\n20-turn context"]
-        LT["🗃️ LongTermMemory\nChromaDB\nPersistent vectors"]
-        RR["🔎 RAGRetriever\nRuntime context\nUE5 docs at query time"]
-        TH["📁 TaskHistory\nJSON log per run\nReplay + review"]
+    subgraph MEML["🧠 MEMORY LAYER"]
+        STM["ShortTermMemory - 20-turn window"]:::memStyle
+        LTM["LongTermMemory - ChromaDB"]:::memStyle
+        RAG["RAGRetriever - Runtime context"]:::memStyle
+        TSH["TaskHistory - JSON logs"]:::memStyle
     end
 
-    subgraph SANDBOX["🛡️  SANDBOX LAYER"]
-        direction LR
-        CV["🔬 CodeValidator\nAST static analysis\nBanned pattern detection"]
-        DR["🎭 DryRunner\nFull simulation\nNo UE5 writes"]
-        RB["↩️ RollbackManager\nPersistent undo stack\nJSON-backed"]
+    subgraph SBXL["🛡️ SANDBOX LAYER"]
+        CVL["CodeValidator - AST analysis"]:::sbxStyle
+        DRL["DryRunner - Simulation"]:::sbxStyle
+        RBL["RollbackManager - Undo stack"]:::sbxStyle
     end
 
-    subgraph INFRA["⚙️  INFRASTRUCTURE & STORAGE"]
-        direction LR
-        RED["🔴 Redis\nShared state\nOptional — file fallback"]
-        CDB["🟣 ChromaDB\nVector store\nRAG index on disk"]
-        OLL["🦙 Ollama Server\nlocalhost:11434\nLocal model runtime"]
-        GRQ["⚡ Groq Cloud\napi.groq.com\nCloud LLM fallback"]
-        KB["📚 Knowledge Base\nMarkdown + JSONL\nUE5 API · Patterns"]
+    subgraph INFRAL["⚙️ INFRASTRUCTURE & STORAGE"]
+        RDB["🔴 Redis - Shared state"]:::infraStyle
+        CDB["🟣 ChromaDB - Vector store"]:::infraStyle
+        OLS["🦙 Ollama - localhost 11434"]:::infraStyle
+        GRQ["☁️ Groq Cloud - api.groq.com"]:::infraStyle
+        KBB["📚 Knowledge Base - UE5 Docs"]:::infraStyle
     end
 
-    UE5RC["🔌  UE5 REMOTE CONTROL API  ────────────────────────────────────────────────\nHTTP · localhost:30010 · Python Script Plugin\nexecute_python  ·  set_property  ·  get_actor_list  ·  describe_object"]
+    RCAPI["🔌 UE5 REMOTE CONTROL API - HTTP - Port 30010 - Python Script Plugin"]:::rcStyle
 
-    subgraph UE5["🎮  UNREAL ENGINE 5 EDITOR  —  EXTERNAL PROCESS"]
-        direction LR
-        BP["📐 Blueprint\nAssets"]
-        PY["🐍 Python\nScripts"]
-        WS["🌍 World\nState"]
-        AR["📦 Asset\nRegistry"]
-        LL["📜 Output\nLog"]
+    subgraph UE5ED["🎮 UNREAL ENGINE 5 EDITOR — EXTERNAL PROCESS"]
+        BPA["Blueprint Assets"]:::ue5Style
+        PYS["Python Scripts"]:::ue5Style
+        WST["World State"]:::ue5Style
+        ARG["Asset Registry"]:::ue5Style
+        OLG["Output Log"]:::ue5Style
     end
 
-    ENTRY       --> EBUS
-    EBUS        --> ORCH
-    ORCH        --> PIPELINE
-    PIPELINE    --> LLM
-    LLM         --> TOOLS
-    LLM         --> MEMORY
-    LLM         --> SANDBOX
-    TOOLS       --> INFRA
-    MEMORY      --> INFRA
-    SANDBOX     --> INFRA
-    INFRA       --> UE5RC
-    UE5RC       --> UE5
+    ENTRY --> EBUS
+    EBUS --> ORCH
+    ORCH --> AGENTS
+    AGENTS --> LLML
+    LLML --> TOOLL
+    LLML --> MEML
+    LLML --> SBXL
+    TOOLL --> INFRAL
+    MEML --> INFRAL
+    SBXL --> INFRAL
+    INFRAL --> RCAPI
+    RCAPI --> UE5ED
 
-    classDef entryNode  fill:#1e3a8a,stroke:#60a5fa,stroke-width:2px,color:#e0e7ff,rx:8
-    classDef busNode    fill:#1e40af,stroke:#93c5fd,stroke-width:3px,color:white
-    classDef orchNode   fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#ede9fe,rx:8
-    classDef agentNode  fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7,rx:8
-    classDef llmNode    fill:#831843,stroke:#f472b6,stroke-width:2px,color:#fce7f3,rx:8
-    classDef toolNode   fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5,rx:8
-    classDef memNode    fill:#713f12,stroke:#fcd34d,stroke-width:2px,color:#fef9c3,rx:8
-    classDef sbxNode    fill:#7f1d1d,stroke:#fca5a5,stroke-width:2px,color:#fee2e2,rx:8
-    classDef infraNode  fill:#111827,stroke:#6b7280,stroke-width:2px,color:#d1d5db,rx:8
-    classDef rcNode     fill:#431407,stroke:#fb923c,stroke-width:2px,color:#ffedd5
-    classDef ue5Node    fill:#1c1c00,stroke:#facc15,stroke-width:2px,color:#fef9c3,rx:8
-
-    class CLI,WEB,HAPI,AMON               entryNode
-    class EBUS                             busNode
-    class TP,TQ,SM                         orchNode
-    class PA,CA,RA,EA                      agentNode
-    class MR,OB,GB,PT,RM,TB2              llmNode
-    class RC,PB,BW,AM,WQ,LW,TR           toolNode
-    class ST,LT,RR,TH                     memNode
-    class CV,DR,RB                        sbxNode
-    class RED,CDB,OLL,GRQ,KB             infraNode
-    class UE5RC                           rcNode
-    class BP,PY,WS,AR,LL                  ue5Node
+    classDef eStyle fill:#1e3a8a,stroke:#60a5fa,stroke-width:2px,color:#e0e7ff
+    classDef busStyle fill:#1e40af,stroke:#93c5fd,stroke-width:3px,color:#ffffff
+    classDef orchStyle fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#ede9fe
+    classDef agentStyle fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7
+    classDef llmStyle fill:#831843,stroke:#f472b6,stroke-width:2px,color:#fce7f3
+    classDef toolStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5
+    classDef memStyle fill:#713f12,stroke:#fcd34d,stroke-width:2px,color:#fef9c3
+    classDef sbxStyle fill:#7f1d1d,stroke:#fca5a5,stroke-width:2px,color:#fee2e2
+    classDef infraStyle fill:#111827,stroke:#6b7280,stroke-width:2px,color:#d1d5db
+    classDef rcStyle fill:#431407,stroke:#fb923c,stroke-width:2px,color:#ffedd5
+    classDef ue5Style fill:#1c1c00,stroke:#facc15,stroke-width:2px,color:#fef9c3
 ```
 
 ---
