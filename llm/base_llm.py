@@ -68,7 +68,8 @@ class RetryMixin:
                     self.max_delay
                 )
                 logger.warning(
-                    attempt + self.max_attempts , e , delay ,
+                    "Retry %d/%d failed: %s. Retrying in %.1fs",
+                    attempt + 1, self.max_attempts, e, delay,
                 )
                 await asyncio.sleep(delay)
         logger.error("all %d retry attempts exhausted" , self.max_attempts)
@@ -99,7 +100,7 @@ class TokenBudget :
     def summary(self) -> str :
         avg_lat = (
             sum(c["latency_ms"] for c in self._calls) / len(self._calls)
-            if self.self._calls else 0
+            if self._calls else 0
         )
         return (
             f"TokenBudget: {self.total_tokens}/{self.limit} tokens used "
