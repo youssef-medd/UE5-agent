@@ -57,6 +57,38 @@ for a in actors:
         break
 """
 
+_DUPLICATE_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        loc = a.get_actor_location()
+        offset = unreal.Vector({offset_x}, {offset_y}, {offset_z})
+        dup = unreal.EditorLevelLibrary.duplicate_actor(a, offset)
+        print(f'Duplicated {{a.get_name()}} -> {{dup.get_name() if dup else "failed"}}')
+        break
+"""
+
+_SET_MATERIAL_TEMPLATE = """\
+import unreal
+
+mat = unreal.load_asset('{material_path}')
+if not mat:
+    print(f'Material not found: {material_path}')
+else:
+    actors = unreal.EditorLevelLibrary.get_all_level_actors()
+    for a in actors:
+        if a.get_name() == '{actor_name}':
+            mesh = a.get_component_by_class(unreal.StaticMeshComponent)
+            if mesh:
+                mesh.set_material({slot_index}, mat)
+                print(f'Applied material to {{a.get_name()}} slot {slot_index}')
+            else:
+                print('No StaticMeshComponent on actor')
+            break
+"""
+
 _SET_VISIBILITY_TEMPLATE = """\
 import unreal
 
@@ -137,6 +169,33 @@ class UE5PythonBridge:
     ) -> dict[str, Any]:
         code = _SCALE_TEMPLATE.format(actor_name=actor_name, x=x, y=y, z=z)
         logger.info("Scaling %r to (%.2f, %.2f, %.2f)", actor_name, x, y, z)
+        return await self._rc.execute_python(code)
+
+    async def duplicate_actor(
+        self,
+        actor_name: str,
+        offset_x: float = 100.0,
+        offset_y: float = 0.0,
+        offset_z: float = 0.0,
+    ) -> dict[str, Any]:
+        code = _DUPLICATE_TEMPLATE.format(
+            actor_name=actor_name,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            offset_z=offset_z,
+        )
+        logger.info("Duplicating actor %r with offset (%.0f, %.0f, %.0f)", actor_name, offset_x, offset_y, offset_z)
+        return await self._rc.execute_python(code)
+
+    async def set_material(
+        self, actor_name: str, material_path: str, slot_index: int = 0
+    ) -> dict[str, Any]:
+        code = _SET_MATERIAL_TEMPLATE.format(
+            actor_name=actor_name,
+            material_path=material_path,
+            slot_index=slot_index,
+        )
+        logger.info("Setting material %r on %r slot %d", material_path, actor_name, slot_index)
         return await self._rc.execute_python(code)
 
     async def set_visibility(self, actor_name: str, hidden: bool) -> dict[str, Any]:
