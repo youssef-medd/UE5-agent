@@ -21,6 +21,20 @@ unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
 print(f'Imported: {source_path} -> {dest_path}')
 """
 
+_DELETE_ASSET_TEMPLATE = """\
+import unreal
+
+result = unreal.EditorAssetLibrary.delete_asset('{asset_path}')
+print(f'Deleted {asset_path}: {{result}}')
+"""
+
+_RENAME_ASSET_TEMPLATE = """\
+import unreal
+
+result = unreal.EditorAssetLibrary.rename_asset('{source_path}', '{dest_path}')
+print(f'Renamed {source_path} -> {dest_path}: {{result}}')
+"""
+
 _LIST_ASSETS_TEMPLATE = """\
 import unreal, json
 
@@ -47,6 +61,18 @@ class AssetManager:
             package_path=package_path,
             recursive="True" if recursive else "False",
         )
+        return await self._rc.execute_python(code)
+
+    async def delete_asset(self, asset_path: str) -> dict[str, Any]:
+        code = _DELETE_ASSET_TEMPLATE.format(asset_path=asset_path)
+        logger.info("Deleting asset %r", asset_path)
+        return await self._rc.execute_python(code)
+
+    async def rename_asset(self, source_path: str, dest_path: str) -> dict[str, Any]:
+        code = _RENAME_ASSET_TEMPLATE.format(
+            source_path=source_path, dest_path=dest_path
+        )
+        logger.info("Renaming asset %r -> %r", source_path, dest_path)
         return await self._rc.execute_python(code)
 
     async def close(self) -> None:
