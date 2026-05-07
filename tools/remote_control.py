@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import httpx
 
@@ -22,7 +23,11 @@ class RemoteControlClient:
         )
 
     async def execute_python(self, code: str) -> dict:
-        payload = {"objectPath": "/Script/PythonScriptPlugin", "functionName": "ExecutePythonScript", "parameters": {"PythonScript": code}}
+        payload = {
+            "objectPath": "/Script/PythonScriptPlugin",
+            "functionName": "ExecutePythonScript",
+            "parameters": {"PythonScript": code},
+        }
         resp = await self._client.put("/remote/object/call", json=payload)
         resp.raise_for_status()
         return resp.json()
@@ -32,7 +37,7 @@ class RemoteControlClient:
         resp.raise_for_status()
         return resp.json().get("objects", [])
 
-    async def set_property(self, object_path: str, property_name: str, value) -> dict:
+    async def set_property(self, object_path: str, property_name: str, value: Any) -> dict:
         payload = {
             "objectPath": object_path,
             "propertyName": property_name,
@@ -41,6 +46,34 @@ class RemoteControlClient:
         resp = await self._client.put("/remote/object/property", json=payload)
         resp.raise_for_status()
         return resp.json()
+
+    async def get_property(self, object_path: str, property_name: str) -> dict:
+        payload = {"objectPath": object_path, "propertyName": property_name}
+        resp = await self._client.get("/remote/object/property", params=payload)
+        resp.raise_for_status()
+        return resp.json()
+
+    async def call_function(
+        self,
+        object_path: str,
+        function_name: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> dict:
+        payload = {
+            "objectPath": object_path,
+            "functionName": function_name,
+            "parameters": parameters or {},
+        }
+        resp = await self._client.put("/remote/object/call", json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
+    async def batch(self, requests: list[dict[str, Any]]) -> list[dict]:
+        """Execute multiple remote control requests in a single HTTP call."""
+        payload = {"requests": requests}
+        resp = await self._client.put("/remote/batch", json=payload)
+        resp.raise_for_status()
+        return resp.json().get("responses", [])
 
     async def health_check(self) -> bool:
         try:
