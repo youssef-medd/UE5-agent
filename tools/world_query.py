@@ -67,6 +67,22 @@ for a in actors:
 print(json.dumps(result))
 """
 
+_GET_COMPONENTS_TEMPLATE = """\
+import unreal, json
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+result = []
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        comps = a.get_components_by_class(unreal.ActorComponent)
+        result = [
+            {{'name': c.get_name(), 'class': c.get_class().get_name()}}
+            for c in comps
+        ]
+        break
+print(json.dumps(result))
+"""
+
 _GET_ACTOR_SCRIPT_TEMPLATE = """\
 import unreal, json
 
@@ -114,6 +130,10 @@ class WorldQuery:
 
     async def get_actor_bounds(self, actor_name: str) -> dict[str, Any]:
         code = _GET_ACTOR_BOUNDS_TEMPLATE.format(actor_name=actor_name)
+        return await self._rc.execute_python(code)
+
+    async def get_components(self, actor_name: str) -> dict[str, Any]:
+        code = _GET_COMPONENTS_TEMPLATE.format(actor_name=actor_name)
         return await self._rc.execute_python(code)
 
     async def close(self) -> None:
