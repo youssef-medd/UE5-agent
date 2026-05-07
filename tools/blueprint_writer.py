@@ -35,6 +35,36 @@ else:
     print(f'Blueprint not found: {{bp_path}}')
 """
 
+_SET_BP_VARIABLE_TEMPLATE = """\
+import unreal
+
+blueprint = unreal.load_asset('{bp_path}')
+if blueprint:
+    unreal.BlueprintEditorLibrary.set_variable_instance_editable(blueprint, '{var_name}', True)
+    prop = unreal.find_field(blueprint.generated_class(), '{var_name}')
+    if prop:
+        cdo = blueprint.generated_class().get_default_object()
+        prop.set_value(cdo, {value_repr})
+        unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
+        print(f'Set {{var_name}} = {value_repr} on {{blueprint.get_name()}}')
+    else:
+        print(f'Variable {{var_name}} not found in {{blueprint.get_name()}}')
+else:
+    print(f'Blueprint not found: {bp_path}')
+"""
+
+_GET_BP_VARIABLES_TEMPLATE = """\
+import unreal, json
+
+blueprint = unreal.load_asset('{bp_path}')
+if blueprint:
+    vars_list = unreal.BlueprintEditorLibrary.get_variable_names(blueprint)
+    result = [str(v) for v in vars_list]
+    print(json.dumps(result))
+else:
+    print(json.dumps([]))
+"""
+
 _ADD_COMPONENT_TEMPLATE = """\
 import unreal
 
@@ -83,6 +113,19 @@ class BlueprintWriter:
     async def compile_blueprint(self, bp_path: str) -> dict[str, Any]:
         code = _COMPILE_BP_TEMPLATE.format(bp_path=bp_path)
         logger.info("Compiling Blueprint %r", bp_path)
+        return await self._rc.execute_python(code)
+
+    async def set_variable(
+        self, bp_path: str, var_name: str, value: Any
+    ) -> dict[str, Any]:
+        code = _SET_BP_VARIABLE_TEMPLATE.format(
+            bp_path=bp_path, var_name=var_name, value_repr=repr(value)
+        )
+        logger.info("Setting BP var %r = %r in %r", var_name, value, bp_path)
+        return await self._rc.execute_python(code)
+
+    async def get_variables(self, bp_path: str) -> dict[str, Any]:
+        code = _GET_BP_VARIABLES_TEMPLATE.format(bp_path=bp_path)
         return await self._rc.execute_python(code)
 
     async def add_component(self, bp_path: str, component_class: str) -> dict[str, Any]:
