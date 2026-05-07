@@ -75,6 +75,26 @@ class RemoteControlClient:
         resp.raise_for_status()
         return resp.json().get("responses", [])
 
+    async def list_presets(self) -> list[dict]:
+        resp = await self._client.get("/remote/presets")
+        resp.raise_for_status()
+        return resp.json().get("presets", [])
+
+    async def get_preset(self, preset_name: str) -> dict:
+        resp = await self._client.get(f"/remote/preset/{preset_name}")
+        resp.raise_for_status()
+        return resp.json()
+
+    async def set_preset_property(
+        self, preset_name: str, property_label: str, value: Any
+    ) -> dict:
+        payload = {"propertyValues": [{property_label: value}]}
+        resp = await self._client.put(
+            f"/remote/preset/{preset_name}/property", json=payload
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     async def health_check(self) -> bool:
         try:
             resp = await self._client.get("/remote/info", timeout=3.0)
