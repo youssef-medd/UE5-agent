@@ -57,6 +57,34 @@ for a in actors:
         break
 """
 
+_ATTACH_TEMPLATE = """\
+import unreal
+
+actors = {{a.get_name(): a for a in unreal.EditorLevelLibrary.get_all_level_actors()}}
+child = actors.get('{child_name}')
+parent = actors.get('{parent_name}')
+if child and parent:
+    child.attach_to_actor(parent, '', unreal.AttachmentRule.KEEP_WORLD,
+                          unreal.AttachmentRule.KEEP_WORLD,
+                          unreal.AttachmentRule.KEEP_WORLD, True)
+    print(f'Attached {{child.get_name()}} to {{parent.get_name()}}')
+else:
+    print(f'Actor not found: child={{child}}, parent={{parent}}')
+"""
+
+_DETACH_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.detach_from_actor(unreal.DetachmentRule.KEEP_WORLD,
+                            unreal.DetachmentRule.KEEP_WORLD,
+                            unreal.DetachmentRule.KEEP_WORLD)
+        print(f'Detached {{a.get_name()}} from parent')
+        break
+"""
+
 _DUPLICATE_TEMPLATE = """\
 import unreal
 
@@ -169,6 +197,16 @@ class UE5PythonBridge:
     ) -> dict[str, Any]:
         code = _SCALE_TEMPLATE.format(actor_name=actor_name, x=x, y=y, z=z)
         logger.info("Scaling %r to (%.2f, %.2f, %.2f)", actor_name, x, y, z)
+        return await self._rc.execute_python(code)
+
+    async def attach_actor(self, child_name: str, parent_name: str) -> dict[str, Any]:
+        code = _ATTACH_TEMPLATE.format(child_name=child_name, parent_name=parent_name)
+        logger.info("Attaching %r to %r", child_name, parent_name)
+        return await self._rc.execute_python(code)
+
+    async def detach_actor(self, actor_name: str) -> dict[str, Any]:
+        code = _DETACH_TEMPLATE.format(actor_name=actor_name)
+        logger.info("Detaching %r from parent", actor_name)
         return await self._rc.execute_python(code)
 
     async def duplicate_actor(
