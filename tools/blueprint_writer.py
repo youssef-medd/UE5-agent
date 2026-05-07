@@ -35,6 +35,20 @@ else:
     print(f'Blueprint not found: {{bp_path}}')
 """
 
+_ADD_EVENT_TEMPLATE = """\
+import unreal
+
+blueprint = unreal.load_asset('{bp_path}')
+if not blueprint:
+    print(f'Blueprint not found: {bp_path}')
+else:
+    graph = unreal.BlueprintEditorLibrary.find_event_graph(blueprint)
+    if not graph:
+        graph = unreal.BlueprintEditorLibrary.add_function_graph(blueprint, '{event_name}')
+    unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
+    print(f'Added event graph {{"{event_name}"}} to {{blueprint.get_name()}}')
+"""
+
 _SET_BP_VARIABLE_TEMPLATE = """\
 import unreal
 
@@ -113,6 +127,11 @@ class BlueprintWriter:
     async def compile_blueprint(self, bp_path: str) -> dict[str, Any]:
         code = _COMPILE_BP_TEMPLATE.format(bp_path=bp_path)
         logger.info("Compiling Blueprint %r", bp_path)
+        return await self._rc.execute_python(code)
+
+    async def add_event_graph(self, bp_path: str, event_name: str) -> dict[str, Any]:
+        code = _ADD_EVENT_TEMPLATE.format(bp_path=bp_path, event_name=event_name)
+        logger.info("Adding event graph %r to %r", event_name, bp_path)
         return await self._rc.execute_python(code)
 
     async def set_variable(
