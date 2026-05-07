@@ -73,6 +73,24 @@ class LogWatcher:
                 errors.append(line)
         return errors
 
+    async def wait_for_pattern(
+        self,
+        pattern: str,
+        timeout: float = 30.0,
+        poll_interval: float = 0.5,
+    ) -> str | None:
+        """Block until a log line matches pattern, then return that line."""
+        compiled = re.compile(pattern, re.I)
+        try:
+            async with asyncio.timeout(timeout):
+                async for line in self.tail(poll_interval):
+                    if compiled.search(line):
+                        logger.debug("wait_for_pattern matched: %s", line)
+                        return line
+        except asyncio.TimeoutError:
+            logger.warning("wait_for_pattern timed out after %.1fs for %r", timeout, pattern)
+        return None
+
     async def scan_for_warnings(self, seconds: float = 5.0) -> list[str]:
         warnings: list[str] = []
         for line in await self.tail_for(seconds):
