@@ -57,6 +57,29 @@ for a in actors:
         break
 """
 
+_SET_LABEL_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.set_actor_label('{label}')
+        print(f'Label set to {label} on {{a.get_name()}}')
+        break
+"""
+
+_SET_TAGS_TEMPLATE = """\
+import unreal
+
+tags = {tags_repr}
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.tags = [unreal.Name(t) for t in tags]
+        print(f'Tags set on {{a.get_name()}}: {{tags}}')
+        break
+"""
+
 _ATTACH_TEMPLATE = """\
 import unreal
 
@@ -197,6 +220,18 @@ class UE5PythonBridge:
     ) -> dict[str, Any]:
         code = _SCALE_TEMPLATE.format(actor_name=actor_name, x=x, y=y, z=z)
         logger.info("Scaling %r to (%.2f, %.2f, %.2f)", actor_name, x, y, z)
+        return await self._rc.execute_python(code)
+
+    async def set_label(self, actor_name: str, label: str) -> dict[str, Any]:
+        code = _SET_LABEL_TEMPLATE.format(actor_name=actor_name, label=label)
+        logger.info("Setting label %r on %r", label, actor_name)
+        return await self._rc.execute_python(code)
+
+    async def set_tags(self, actor_name: str, tags: list[str]) -> dict[str, Any]:
+        code = _SET_TAGS_TEMPLATE.format(
+            actor_name=actor_name, tags_repr=repr(tags)
+        )
+        logger.info("Setting tags %r on %r", tags, actor_name)
         return await self._rc.execute_python(code)
 
     async def attach_actor(self, child_name: str, parent_name: str) -> dict[str, Any]:
