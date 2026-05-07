@@ -21,6 +21,25 @@ unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
 print(f'Imported: {source_path} -> {dest_path}')
 """
 
+_ASSET_EXISTS_TEMPLATE = """\
+import unreal, json
+
+exists = unreal.EditorAssetLibrary.does_asset_exist('{asset_path}')
+print(json.dumps({{'exists': exists, 'path': '{asset_path}'}}))
+"""
+
+_GET_METADATA_TEMPLATE = """\
+import unreal, json
+
+asset = unreal.load_asset('{asset_path}')
+if asset:
+    keys = unreal.EditorAssetLibrary.get_metadata_tag_values(asset)
+    result = {{'path': '{asset_path}', 'class': asset.get_class().get_name(), 'metadata': dict(keys)}}
+else:
+    result = {{'path': '{asset_path}', 'error': 'not found'}}
+print(json.dumps(result))
+"""
+
 _DELETE_ASSET_TEMPLATE = """\
 import unreal
 
@@ -61,6 +80,15 @@ class AssetManager:
             package_path=package_path,
             recursive="True" if recursive else "False",
         )
+        return await self._rc.execute_python(code)
+
+    async def asset_exists(self, asset_path: str) -> dict[str, Any]:
+        code = _ASSET_EXISTS_TEMPLATE.format(asset_path=asset_path)
+        return await self._rc.execute_python(code)
+
+    async def get_metadata(self, asset_path: str) -> dict[str, Any]:
+        code = _GET_METADATA_TEMPLATE.format(asset_path=asset_path)
+        logger.debug("Fetching metadata for %r", asset_path)
         return await self._rc.execute_python(code)
 
     async def delete_asset(self, asset_path: str) -> dict[str, Any]:
