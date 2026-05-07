@@ -24,6 +24,39 @@ else:
     print(f'Asset not found: {asset_path}')
 """
 
+_MOVE_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.set_actor_location(unreal.Vector({x}, {y}, {z}), False, False)
+        print(f'Moved {{a.get_name()}} to ({x}, {y}, {z})')
+        break
+"""
+
+_ROTATE_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.set_actor_rotation(unreal.Rotator({pitch}, {yaw}, {roll}), False)
+        print(f'Rotated {{a.get_name()}} to pitch={pitch} yaw={yaw} roll={roll}')
+        break
+"""
+
+_SCALE_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.set_actor_scale3d(unreal.Vector({x}, {y}, {z}))
+        print(f'Scaled {{a.get_name()}} to ({x}, {y}, {z})')
+        break
+"""
+
 _DELETE_TEMPLATE = """\
 import unreal
 
@@ -55,6 +88,29 @@ class UE5PythonBridge:
     async def delete_actor(self, actor_name: str) -> dict[str, Any]:
         code = _DELETE_TEMPLATE.format(actor_name=actor_name)
         logger.info("Deleting actor %r", actor_name)
+        return await self._rc.execute_python(code)
+
+    async def move_actor(
+        self, actor_name: str, x: float, y: float, z: float
+    ) -> dict[str, Any]:
+        code = _MOVE_TEMPLATE.format(actor_name=actor_name, x=x, y=y, z=z)
+        logger.info("Moving %r to (%.0f, %.0f, %.0f)", actor_name, x, y, z)
+        return await self._rc.execute_python(code)
+
+    async def rotate_actor(
+        self, actor_name: str, pitch: float, yaw: float, roll: float
+    ) -> dict[str, Any]:
+        code = _ROTATE_TEMPLATE.format(
+            actor_name=actor_name, pitch=pitch, yaw=yaw, roll=roll
+        )
+        logger.info("Rotating %r to (%.1f, %.1f, %.1f)", actor_name, pitch, yaw, roll)
+        return await self._rc.execute_python(code)
+
+    async def scale_actor(
+        self, actor_name: str, x: float, y: float, z: float
+    ) -> dict[str, Any]:
+        code = _SCALE_TEMPLATE.format(actor_name=actor_name, x=x, y=y, z=z)
+        logger.info("Scaling %r to (%.2f, %.2f, %.2f)", actor_name, x, y, z)
         return await self._rc.execute_python(code)
 
     async def run_script(self, code: str) -> dict[str, Any]:
