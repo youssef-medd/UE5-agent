@@ -57,6 +57,32 @@ for a in actors:
         break
 """
 
+_SET_VISIBILITY_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        a.set_is_temporarily_hidden_in_editor({hidden})
+        print(f'Visibility of {{a.get_name()}} hidden={hidden}')
+        break
+"""
+
+_SET_PHYSICS_TEMPLATE = """\
+import unreal
+
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+for a in actors:
+    if a.get_name() == '{actor_name}':
+        mesh = a.get_component_by_class(unreal.StaticMeshComponent)
+        if mesh:
+            mesh.set_simulate_physics({simulate})
+            print(f'Physics simulate={simulate} on {{a.get_name()}}')
+        else:
+            print('No StaticMeshComponent found')
+        break
+"""
+
 _DELETE_TEMPLATE = """\
 import unreal
 
@@ -111,6 +137,18 @@ class UE5PythonBridge:
     ) -> dict[str, Any]:
         code = _SCALE_TEMPLATE.format(actor_name=actor_name, x=x, y=y, z=z)
         logger.info("Scaling %r to (%.2f, %.2f, %.2f)", actor_name, x, y, z)
+        return await self._rc.execute_python(code)
+
+    async def set_visibility(self, actor_name: str, hidden: bool) -> dict[str, Any]:
+        code = _SET_VISIBILITY_TEMPLATE.format(
+            actor_name=actor_name, hidden="True" if hidden else "False"
+        )
+        return await self._rc.execute_python(code)
+
+    async def set_physics(self, actor_name: str, simulate: bool) -> dict[str, Any]:
+        code = _SET_PHYSICS_TEMPLATE.format(
+            actor_name=actor_name, simulate="True" if simulate else "False"
+        )
         return await self._rc.execute_python(code)
 
     async def run_script(self, code: str) -> dict[str, Any]:
