@@ -3,12 +3,22 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from pathlib import Path
 from typing import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_LOG_GLOB = "Saved/Logs/UnrealEditor.log"
+
+_ERROR_PATTERNS = [
+    re.compile(r"\bError\b", re.I),
+    re.compile(r"\bFatal\b", re.I),
+    re.compile(r"\bCrash\b", re.I),
+    re.compile(r"\bException\b", re.I),
+]
+
+_WARNING_PATTERN = re.compile(r"\bWarning\b", re.I)
 
 
 class LogWatcher:
@@ -34,6 +44,17 @@ class LogWatcher:
                 else:
                     await asyncio.sleep(poll_interval)
 
+    async def tail_filtered(
+        self,
+        pattern: str,
+        poll_interval: float = 0.5,
+    ) -> AsyncIterator[str]:
+        """Yield only lines matching the given regex pattern."""
+        compiled = re.compile(pattern, re.I)
+        async for line in self.tail(poll_interval):
+            if compiled.search(line):
+                yield line
+
     async def tail_for(self, seconds: float, poll_interval: float = 0.5) -> list[str]:
         lines: list[str] = []
         try:
@@ -43,3 +64,18 @@ class LogWatcher:
         except asyncio.TimeoutError:
             pass
         return lines
+
+    async def scan_for_errors(self, seconds: float = 5.0) -> list[str]:
+        """Collect all error/fatal/crash lines emitted within a time window."""
+        errors: list[str] = []
+        for line in await self.tail_for(seconds):
+            if any(p.search(line) for p in _ERROR_PATTERNS):
+                errors.append(line)
+        return errors
+
+    async def scan_for_warnings(self, seconds: float = 5.0) -> list[str]:
+        warnings: list[str] = []
+        for line in await self.tail_for(seconds):
+            if _WARNING_PATTERN.search(line):
+                warnings.append(line)
+        return warnings
